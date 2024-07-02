@@ -7,7 +7,7 @@ CommonVoice 18.0 has the following "macro-dialect" composition (L2 data removed)
 | Validated Sample Count | 954330  | 24052  | 29763 | 75606           | 84970    | 711528  |
 | Duration (Hours)       | 1434.06 | 36.9   | 46.71 | 101.62          | 121.48   | 1074.82 |
 
-Working in a way that tries to use as much data as possible, we aim need to train ASR models that vary in how biased toward the Central dialect they are. Givent that the Balear dialect represents the "lower limit" in terms of data, I worked from the assumption that at most, we can have ~28.8 hours of Balear training data (80% of 36), and 3.6 hours each of Balear development and test data (10% each). 
+Working in a way that tries to use as much data as possible, we aim to train ASR models that vary in how biased toward the Central dialect they are. Given that the Balear dialect represents the "lower limit" in terms of data, I worked from the assumption that at most, we can have ~28.8 hours of Balear training data (80% of 36 hr), and 3.6 hours each of Balear development and test data (10% each). 
 
 The following is one possible set of dialect compositions, ranging from a condition where all the fine-tuning data is in the Central dialect (Model 1) to a condition where the fine-tuning data is perfectly balanced (Model 4). 
 
