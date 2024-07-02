@@ -68,3 +68,5 @@ __Evaluation__
 | Model 2 (80% Central)  | 2405    | 2405   | 2405 | 2405            | 2405     | 12025 |
 | Model 3 (50% Central)  | 2405    | 2405   | 2405 | 2405            | 2405     | 12025 |
 | Model 4 (20% Central)  | 2405    | 2405   | 2405 | 2405            | 2405     | 12025 |
+
+For now, this assumes that we'll only use the validated data with dialect annotations. If 144 hours of training data isn't enough to get good results on the ASR, we can look into making a dialect identifier. But, since the focus is more on the composition/bias in the train set rather than the quality of the ASR overall, I think we can proceed without using the unlabeled data. 
