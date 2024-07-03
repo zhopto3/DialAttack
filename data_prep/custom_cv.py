@@ -19,8 +19,8 @@ class CustomCV(torchaudio.datasets.COMMONVOICE):
         
         #@TODO : get the data w/ relevant proportion of each dialect
 
-        #@TODO : Preprocess text (character tokenization, lowercase, remove punctuation) (possibly in separate class)
+        #@TODO : Preprocess text (character tokenization, lowercase, remove punctuation) (in separate class)
 
-        #@TODO : preprocess speech input
+        #@TODO : preprocess speech input (just resampling, xlsr takes raw waveform not mel)
 
         #@TODO : overwrite the __get_item__ method
