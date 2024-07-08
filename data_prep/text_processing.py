@@ -7,7 +7,7 @@ import re
 import pandas as pd
 #import torch
 
-class Vocab:
+class Tokenizer:
 
     def __init__(self, path_to_voc:str, path_to_train_val: str = "../../../../../Desktop/cv-cat-18/ca/train_dev_full.tsv"):
         if os.path.isfile(path_to_voc):
@@ -30,15 +30,23 @@ class Vocab:
         for sent in list(preprocessed):
             alphabet.extend(list(sent))
             
-        #add unk, pad, and blank (same as pad?)
-        print(set(alphabet))
+        alphabet = list(set(alphabet))
+        #Add "|" for the blank 
+        alphabet = {"|":0} | {char:i+1 for i,char in enumerate(alphabet)}
+        #Add "unk"
+        alphabet["[UNK]"]=len(alphabet)
 
-    def encode_char(self, text):
+        #Save for future use
+        with open(out_path, "w", encoding="utf-8") as output:
+            json.dump(alphabet,output,indent=1,ensure_ascii=False)
+        return alphabet
+
+    def encode(self, text):
         #If the character isn't in the alphabet, replace w unknown
-        pass
+        return [self.char_2_id.get(char, self.char_2_id["[UNK]"]) for char in list(text)]
 
-    def decode_char(self, ids):
-        pass
+    def decode(self, ids):
+        return "".join([self.id_2_char.get(num) for num in ids])
 
 
 class TextTransform:
@@ -48,41 +56,46 @@ class TextTransform:
             self.specials=specials
         else:
             self.specials = ["\.","\?","\,","\!","\(","\)",
-                             "\t","\n","…","\+","―",'‐','–','-',
+                             "…","\+","―",'‐','–','-','\\\\',
                              "\[","\]","\*","/","¿",'�',"\|",
                              ";","_","–","—",">","~","¡",'“','ª','»',
-                             '"','‘','’','«','ℂ','•','²',":","ı",'´','`',
-                              'ং', 'ঃ', 'ः',"ὑ"]
+                             '"','‘','’','«','•','²',":","ı",'´','`',
+                              'ং', 'ঃ', 'ः',"ὑ","”",'̟','ð',"́"]
     
     def preprocess(self,text: str):
         #Original df has mixed types, convert to str
         text = str(text)
+        text = unicodedata.normalize("NFKC",text)
         text = text.lower()
-        text = unicodedata.normalize("NFC",text)
 
-        #remove special characters
+        # #remove special characters
         for char in self.specials:
-            text = re.sub(char,'',text)
+            text = re.sub(char,' ',text)
+        text = re.sub(r"\d",' ', text)
         text = re.sub("@"," arroba ",text)
         text = re.sub('°',' graus ',text)
         text = re.sub('β',' beta ', text)
 
-        text = re.sub("ň","n", text)
-        text = re.sub("ë","e", text)
-        text = re.sub("ć","c", text)
-        text = re.sub("ž","z", text)
-        text = re.sub('č','c', text)
-        text = re.sub('ė','e', text)
-        text = re.sub('ö','o', text)
-        text = re.sub('ş','s', text)
-        text = re.sub('ã','a', text)
-        text = re.sub('ô','o', text)
-        text = re.sub('â','a', text)
-        text = re.sub('š','s', text)
-
+        text = re.sub(r"\s",' ', text)
+        text = re.sub(r"[ň,ℕ]","n", text)
+        text = re.sub(r"[ë,ė]","e", text)
+        text = re.sub(r"[ć,č,ℂ,с]","c", text)
+        text = re.sub(r"[ž,ℤ]","z", text)
+        text = re.sub(r'[š,ś,ş]','s', text)
+        text = re.sub(r"[ì,î]",'i', text)
+        #Replace with catalan digraph corresponding to same sound
+        text = re.sub("ñ","ny", text)
+        text = re.sub("ū","u", text)
+        text = re.sub("ţ","t", text)
+        text = re.sub("ř","r", text)
+        text = re.sub('ł','l', text)
+        text = re.sub('ù','u', text)
+        text = re.sub(r"[ō,ŏ,ö,ô,ő,ø]","o", text)
+        text = re.sub(r"[å,ā,â,ã,ä,á]","a", text)
 
         return text
     
     def dynamic_padding(self,batch):
         """Data collator for the data loader that will allow for dynamic padding (i.e., to the longest sent in a batch) rather than absolute"""
+        #Should be part of a seperate class (or just a standalone function) since I'm actually trying to pad the audio not text...
         pass
