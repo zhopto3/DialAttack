@@ -1,21 +1,18 @@
 import torchaudio
+from text_processing import Tokenizer, TextTransform
 import json
 
 
 class CustomCV(torchaudio.datasets.COMMONVOICE):
     
-    def __init__(self, prop_central: float, path: str, tsv_name:str, split: str):
+    def __init__(self, prop_central: float, split: str, vocab: str="vocab.json", path: str="../../../../../Desktop/cv-cat-18/ca/"):
         super(CustomCV,self).__init__(
             root=path,
-            tsv=tsv_name
+            tsv='eval_balanced.tsv' if split == 'test' else "train_dev_full.tsv"
         )
-
-        with open("./macrodial.json",'r',encoding="utf-8") as input:
-            self.macro_dial = json.loads(input)
-
-        self.alphabet = set()
-        self.char_2_id = {}
-        self.id_2_char = {}
+        self.tokenizer = Tokenizer(vocab)
+        # with open("./macrodial.json",'r',encoding="utf-8") as input:
+        #     self.macro_dial = json.loads(input)
         
         #@TODO : get the data w/ relevant proportion of each dialect
 
