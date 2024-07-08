@@ -3,6 +3,7 @@ import unicodedata
 import os
 import json
 import re
+import csv
 
 import pandas as pd
 #import torch
@@ -21,7 +22,7 @@ class Tokenizer:
     def _make_vocab(self, data:str, out_path:str):
         """Make a json containing the correspondance between tokens and their numeric id"""
         preprocesser = TextTransform()
-        train_dev_df = pd.read_csv(data,delimiter="\t")
+        train_dev_df = pd.read_csv(data,delimiter="\t", escapechar="\\",quoting = csv.QUOTE_NONE)
         
         alphabet = []
 
@@ -93,7 +94,7 @@ class TextTransform:
         text = re.sub(r"[ō,ŏ,ö,ô,ő,ø]","o", text)
         text = re.sub(r"[å,ā,â,ã,ä,á]","a", text)
 
-        return text
+        return text.strip()
     
     def dynamic_padding(self,batch):
         """Data collator for the data loader that will allow for dynamic padding (i.e., to the longest sent in a batch) rather than absolute"""
