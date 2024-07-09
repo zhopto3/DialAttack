@@ -48,6 +48,9 @@ class Tokenizer:
 
     def decode(self, ids):
         return "".join([self.id_2_char.get(num) for num in ids])
+    
+    def __len__(self):
+        return len(self.char_2_id)
 
 
 class TextTransform:
@@ -102,5 +105,5 @@ def dynamic_padding(batch):
     T = [torch.Tensor(txt) for _,txt,_2 in batch]
     dial = [dialect for _,_2,dialect in batch]
     X = torch.nn.utils.rnn.pad_sequence(X,batch_first=True).squeeze()
-    T = torch.nn.utils.rnn.pad_sequence(T,batch_first=True)
+    T = torch.nn.utils.rnn.pad_sequence(T,batch_first=True, padding_value=-100)
     return X, T, dial
