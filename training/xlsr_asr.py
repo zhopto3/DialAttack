@@ -20,11 +20,15 @@ class XLSR_ASR(torch.nn.Module):
         self.encoder = self.bundle.get_model()
         self.fc = torch.nn.Linear(self.bundle._params["encoder_embed_dim"],O)
 
-    def forward(self,x):
+    def forward(self,x,lengths):
         #Get features
-        features, _ = self.encoder.extract_features(x)
+        features, lengths = self.encoder.extract_features(waveforms = x, lengths=lengths)
         #Return list of features for all layers in xlsr, so take only the final to do classification
         features = features[-1]
         #Reduce to vocabulary dimensions
+        # batchxtime_framexalphabet_dim
         logits = self.fc(features)
-        return logits
+        #Get log probabilites out of logits
+        log_probs = torch.nn.functional.log_softmax(logits,dim=-1)
+        #reshape to CTC requirements: in_lengthxBxalphabet_dim; return lengths of input in adjusted time frame
+        return log_probs.transpose(0,1), lengths
