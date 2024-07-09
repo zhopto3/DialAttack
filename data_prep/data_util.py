@@ -6,7 +6,7 @@ import re
 import csv
 
 import pandas as pd
-#import torch
+import torch
 
 class Tokenizer:
 
@@ -96,7 +96,11 @@ class TextTransform:
 
         return text.strip()
     
-    def dynamic_padding(self,batch):
-        """Data collator for the data loader that will allow for dynamic padding (i.e., to the longest sent in a batch) rather than absolute"""
-        #Should be part of a seperate class (or just a standalone function) since I'm actually trying to pad the audio not text...
-        pass
+
+def dynamic_padding(batch):
+    X = [wf.reshape(-1,1) for wf,_,_2 in batch]
+    T = [torch.Tensor(txt) for _,txt,_2 in batch]
+    dial = [dialect for _,_2,dialect in batch]
+    X = torch.nn.utils.rnn.pad_sequence(X,batch_first=True).squeeze()
+    T = torch.nn.utils.rnn.pad_sequence(T,batch_first=True)
+    return X, T, dial
