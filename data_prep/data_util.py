@@ -101,9 +101,17 @@ class TextTransform:
     
 
 def dynamic_padding(batch):
+    #Unravel waveforms in batch
     X = [wf.reshape(-1,1) for wf,_,_2 in batch]
+    #Return lengths to provide to encoder for attention masking
+    audio_lengths = [x.shape[0] for x in X]
+    #Unravel text in batch
     T = [torch.Tensor(txt) for _,txt,_2 in batch]
+    #Return the text, lengths to give to the CTC loss
+    text_lengths = [len(txt) for _,txt,_2 in batch]
+    #Unravel dial in batch
     dial = [dialect for _,_2,dialect in batch]
+    #pad 
     X = torch.nn.utils.rnn.pad_sequence(X,batch_first=True).squeeze()
     T = torch.nn.utils.rnn.pad_sequence(T,batch_first=True, padding_value=-100)
-    return X, T, dial
+    return X, T, dial, torch.Tensor(audio_lengths).long(), torch.Tensor(text_lengths).long()
