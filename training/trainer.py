@@ -78,6 +78,8 @@ class Trainer:
                 audio_l = audio_l.to(self.device)
                 txt_l = txt_l.to(self.device)
 
+                y, in_lengths = self.network(x, audio_l)
+
                 J = self.criterion(y,t,in_lengths,txt_l)
                 self.running_val_loss+=J.item()
         #Update validation metrics
