@@ -87,7 +87,7 @@ def main():
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
 
     #Initiate training
-    #trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience)
+    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience)
 
 if __name__ == "__main__":
     main()
