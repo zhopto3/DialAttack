@@ -25,9 +25,9 @@ class Trainer:
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     def train(self, initial_lr, es_patience, lr_patience, logger_level = logging.INFO):
-        os.makedirs(f'../{self.name}',exist_ok=True)
-        os.makedirs(f'../{self.name}/logs',exist_ok=True)
-        logging.basicConfig(filename=f'../{self.name}/logs/{self.name}.log',filemode="w", format='%(asctime)s %(message)s')
+        os.makedirs(f'./{self.name}',exist_ok=True)
+        os.makedirs(f'./{self.name}/logs',exist_ok=True)
+        logging.basicConfig(filename=f'./{self.name}/logs/{self.name}.log',filemode="w", format='%(asctime)s %(message)s')
         self.logger = logging.getLogger()
         self.logger.setLevel(logger_level)
 
@@ -140,9 +140,9 @@ class Trainer:
         return False if (any(self.delta_queue)&len(self.delta_queue)==patience) else True
     
     def _save_best_ckpt(self):
-        os.makedirs(f'../{self.name}/checkpoints',exist_ok=True)
-        if os.path.isfile(f'../{self.name}/checkpoints/best_checkpoint.pt'):
-            os.remove(f'../{self.name}/checkpoints/best_checkpoint.pt')
+        os.makedirs(f'./{self.name}/checkpoints',exist_ok=True)
+        if os.path.isfile(f'./{self.name}/checkpoints/best_checkpoint.pt'):
+            os.remove(f'./{self.name}/checkpoints/best_checkpoint.pt')
 
         torch.save({
             'epoch':len(self.best_val_epoch),
@@ -150,4 +150,4 @@ class Trainer:
             'model_state_dict':self.network.state_dict(),
             'optimizer_state_dict':self.optimizer.state_dict(),
             'scheduler_state_dict':self.scheduler.state_dict()
-        },f'../{self.name}/checkpoints/best_checkpoint.pt')
+        },f'./{self.name}/checkpoints/best_checkpoint.pt')

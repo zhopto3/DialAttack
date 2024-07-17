@@ -4,6 +4,7 @@ import sys
 
 from torchaudio import pipelines
 from torch.utils.data import DataLoader
+from torch.cuda import empty_cache
 
 
 #Add customCV modules to path
@@ -39,10 +40,10 @@ def get_args():
     parser.add_argument("--data_path",default="../cv-cat-18/ca/",
                         help="Path to directory containing data TSVs and clip directory")
     
-    parser.add_argument("--batch_size", default = 256, type = int,
+    parser.add_argument("--batch_size", default = 8, type = int,
                         help="Train batch size")
     
-    parser.add_argument("--intial_lr", default = 0.00001, type=float,
+    parser.add_argument("--initial_lr", default = 0.00001, type=float,
                         help = "Initial learning rate to pass to lr scheduler")
     
     parser.add_argument("--lr_patience", default=2, type=int,
@@ -82,6 +83,7 @@ def main():
 
     vocab_size = len(train_set.tokenizer)
 
+    empty_cache()
     network = XLSR_ASR(vocab_size, args.model, freeze_CNN=args.freeze_feature_extractor)
 
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
