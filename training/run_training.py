@@ -40,8 +40,11 @@ def get_args():
     parser.add_argument("--data_path",default="../cv-cat-18/ca/",
                         help="Path to directory containing data TSVs and clip directory")
     
-    parser.add_argument("--batch_size", default = 8, type = int,
+    parser.add_argument("--batch_size", default = 16, type = int,
                         help="Train batch size")
+    
+    parser.add_argument("--grad_accum",action="store_true",
+                        help="If true, will accumulate gradients and only update the weigths every 16 batches. Use to increase effective batch size when GPU storage limited.")
     
     parser.add_argument("--initial_lr", default = 0.00001, type=float,
                         help = "Initial learning rate to pass to lr scheduler")
@@ -89,7 +92,7 @@ def main():
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
 
     #Initiate training
-    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience)
+    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, grad_accum=args.grad_accum)
 
 if __name__ == "__main__":
     main()
