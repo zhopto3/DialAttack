@@ -8,7 +8,7 @@ from torch import Tensor
 
 class CustomCV(torchaudio.datasets.COMMONVOICE):
     
-    def __init__(self, prop_central: int, model_sr:int ,split: str, vocab: str="vocab.json", path: str="../../../../../Desktop/cv-cat-18/ca/"):
+    def __init__(self, prop_central: int, model_sr:int ,split: str, vocab: str="vocab.json", path: str="../cv-cat-18/ca/"):
         super(CustomCV,self).__init__(
             root=path,
             tsv='eval_balanced.tsv' if split == 'test' else f"{split}_{prop_central}.tsv"

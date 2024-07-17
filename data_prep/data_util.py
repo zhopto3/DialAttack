@@ -10,7 +10,7 @@ import torch
 
 class Tokenizer:
 
-    def __init__(self, path_to_voc:str, path_to_train_val: str = "../../../../../Desktop/cv-cat-18/ca/train_dev_full.tsv"):
+    def __init__(self, path_to_voc:str, path_to_train_val: str = "../cv-cat-18/ca/train_dev_full.tsv"):
         if os.path.isfile(path_to_voc):
             with open(path_to_voc,'r',encoding='utf-8') as voc:
                 self.char_2_id = json.load(voc)
