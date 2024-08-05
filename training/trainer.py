@@ -24,7 +24,7 @@ class Trainer:
 
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    def train(self, initial_lr, es_patience, lr_patience, grad_accum,logger_level = logging.INFO):
+    def train(self, initial_lr, es_patience, lr_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
         os.makedirs(f'./{self.name}',exist_ok=True)
         os.makedirs(f'./{self.name}/logs',exist_ok=True)
         logging.basicConfig(filename=f'./{self.name}/logs/{self.name}.log',filemode="w", format='%(asctime)s %(message)s')
@@ -35,17 +35,17 @@ class Trainer:
             self.optimizer = torch.optim.Adam(self.network.parameters(),lr = initial_lr)
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,patience=lr_patience)
             self.logger.info(f"ASR training:")
-            self._train_asr(es_patience, grad_accum)
+            self._train_asr(es_patience, grad_accum, delta)
         elif self.task=="dial_class":
             #@TODO implement optimizer and scheduler for dialect classification if necessary
             self._train_dial_class(es_patience)
         else:
             raise Exception("Task not implemented")
         
-    def _train_asr(self,patience, accum):
+    def _train_asr(self,patience, accum, delta):
         self.network = self.network.to(self.device)
 
-        self._initialize_metrics(patience)
+        self._initialize_metrics()
 
         if accum:
             #accumulate gradients for 16 batches before updting weights
@@ -89,15 +89,16 @@ class Trainer:
             self.logger.info(f"Macro-Average Train loss over epoch:\t{self.train_loss_epoch[len(self.train_loss_epoch)]}")
             self.running_train_loss=0.
             #Run validation and update relevant metrics
-            J_val = self._vaildation_step_asr()
+            J_val = self._validation_step_asr(delta=delta)
             self.logger.info(f"Average Validation loss over epoch:\t{J_val}")
-            self.logger.info(f"Best Validation Epoch: {self.best_val_epoch}")
-            self.logger.info(f"Best Validation Loss: {self.best_val_loss}")
-            self.logger.info(f"Delta Validation loss: {self.delta_queue[-1]}")
+            self.logger.info(f"Best Validation Epoch:\t{self.best_val_epoch}")
+            self.logger.info(f"Best Validation Loss:\t{self.best_val_loss}")
+            #self.logger.info(f"Delta Validation loss: {self.delta_queue[-1]}")
+            self.logger.info(f"Patience Counter:\t{self.patience_counter}")
             #Adjust learning rate
             self.scheduler.step(J_val)
 
-    def _validation_step_asr(self):
+    def _validation_step_asr(self,delta):
         self.network.eval()
         with torch.no_grad():
             for x,t,_,audio_l,txt_l in self.val_dl:
@@ -120,14 +121,18 @@ class Trainer:
             self.best_val_epoch = len(self.val_loss_epoch)
             self._save_best_ckpt()
         #Update the delta queue
-        self.delta_queue.append(self.best_val_loss-prior_best)
+        #self.delta_queue.append(self.best_val_loss-prior_best)
+        if J_val>prior_best+delta:
+            self.patience_counter+=1
+        else:
+            self.patience_counter=0
         return J_val
         
     def _train_dial_class(self,optimizer,patience,lr_scheduler):
         #@TODO: If necessary, implement this
         raise Exception("Task not implemented")
     
-    def _initialize_metrics(self,patience):
+    def _initialize_metrics(self):#_initialize_metrics(self,patience):
         #Accumulate train loss over all batches epoch, divide by num batches, and reset to 0
         self.running_train_loss = 0.
         self.running_val_loss = 0.
@@ -143,11 +148,13 @@ class Trainer:
         self.best_val_loss = torch.inf
 
         #queue of length of patience; store the change in the best validation loss after each epoch
-        self.delta_queue = deque(maxlen=patience)
+        #self.delta_queue = deque(maxlen=patience)
+        self.patience_counter = 0
     
     def _terminate(self,patience):
         #Keep going until all the items in the queue are 0 (x epochs with no change in best validation loss)
-        return False if (any(self.delta_queue)&len(self.delta_queue)==patience) else True
+        #return False if (any(self.delta_queue)&len(self.delta_queue)==patience) else True
+        return False if (self.patience_counter==patience) else True
     
     def _save_best_ckpt(self):
         os.makedirs(f'./{self.name}/checkpoints',exist_ok=True)
@@ -155,7 +162,7 @@ class Trainer:
             os.remove(f'./{self.name}/checkpoints/best_checkpoint.pt')
 
         torch.save({
-            'epoch':len(self.best_val_epoch),
+            'epoch':self.best_val_epoch,
             'loss':self.train_loss_epoch[self.best_val_epoch],
             'model_state_dict':self.network.state_dict(),
             'optimizer_state_dict':self.optimizer.state_dict(),
