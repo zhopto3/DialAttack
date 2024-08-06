@@ -47,7 +47,7 @@ class Tokenizer:
         return [self.char_2_id.get(char, self.char_2_id["[UNK]"]) for char in list(text)]
 
     def decode(self, ids):
-        return "".join([self.id_2_char.get(num) for num in ids])
+        return "".join([self.id_2_char.get(num) for num in ids if self.id_2_char.get(num)])
     
     def __len__(self):
         return len(self.char_2_id)
