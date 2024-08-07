@@ -46,6 +46,9 @@ def get_args():
     parser.add_argument("--grad_accum",action="store_true",
                         help="If true, will accumulate gradients and only update the weigths every 16 batches. Use to increase effective batch size when GPU storage limited.")
     
+    parser.add_argument("--patience_delta", default = -0.1, type=float,
+                        help = "Some minimal change to indicate when a model should stop training")
+    
     parser.add_argument("--initial_lr", default = 0.00001, type=float,
                         help = "Initial learning rate to pass to lr scheduler")
     
@@ -77,7 +80,6 @@ def main():
     args = get_args()
 
     bundle = get_bundle(args.model)
-
     train_set = CustomCV(args.prop_central, bundle.sample_rate, split="train", vocab=args.vocab_path, path=args.data_path)
     dev_set = CustomCV(args.prop_central, bundle.sample_rate, split="dev", vocab=args.vocab_path, path=args.data_path)
 
@@ -92,7 +94,7 @@ def main():
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
 
     #Initiate training
-    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, grad_accum=args.grad_accum)
+    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
 
 if __name__ == "__main__":
     main()
