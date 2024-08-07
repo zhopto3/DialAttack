@@ -1,5 +1,3 @@
-import sys
-
 import torch
 
 from decoders import Greedy_Decoder, BeamSearch_Decoder
@@ -14,7 +12,10 @@ class Inference():
         
         #Load model
         self.model = model
-        self.model.load_state_dict(torch.load(ckpt_path))
+
+        checkpoint = torch.load(ckpt_path)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+
         self.model.eval()
 
         self.eval_loader = test_loader
@@ -33,6 +34,7 @@ class Inference():
                 #make a beam search decoder
                 decoder = BeamSearch_Decoder(beam_size=beam_size)
             self.tokenizer = eval_set.tokenizer
+            self.dial_codes = eval_set.code_2_dial
             self._eval_asr(decoder)
         elif self.task=="adversarial":
             pass
@@ -41,30 +43,32 @@ class Inference():
         
     def _eval_asr(self, decoder):
         self.network = self.model.to(self.device)
-
+        
         #Print header
-        print(f"Target\tASR Output\tWord Error Rate\tCharacter Error Rate")
+        print(f"Dialect\tTarget\tASR Output\tWord Error Rate\tCharacter Error Rate")
         with torch.no_grad():
-            for x,t,_,audio_l,txt_l in self.eval_loader:
+            for x,t,dialect,audio_l,txt_l in self.eval_loader:
+
                 x = x.to(self.device)
                 t = t.to(self.device)
                 audio_l = audio_l.to(self.device)
-                txt_l = txt_l.to(self.device)
 
                 y,_ = self.network(x, audio_l)
 
                 out_seqs = decoder(y)
+                break
+                for gold_seq, model_seq, dial in zip(t,out_seqs, dialect):
 
-                for gold_seq, model_seq in zip(t,out_seqs):
                     #Get output and target in human readable formats (decode)
-                    decoded_gold = self.tokenizer.decode(gold_seq)
-                    decoded_model = self.tokenizer.decode(model_seq)
+                    decoded_gold = self.tokenizer.decode(gold_seq.detach().cpu().type(torch.int64).tolist())
+                    decoded_model = self.tokenizer.decode(model_seq.detach().cpu().type(torch.int64).tolist())
 
-                    wer = self._wer(decoded_gold, decoded_model)
-                    cer = self._cer(decoded_gold, decoded_model)
+                    print(f"{self.dial_codes[dial]}\t{decoded_gold}\t{decoded_model}")
+                    
+                    # wer = self._wer(decoded_gold, decoded_model)
+                    # cer = self._cer(decoded_gold, decoded_model)
 
-                    print(f"{decoded_gold}\t{decoded_model}\t{wer}\t{cer}")
-    
+                    # print(f"{self.dial_codes[dial]}\t{decoded_gold}\t{decoded_model}\t{wer}\t{cer}")
     def _wer(self, gold, model):
         pass
 
