@@ -20,6 +20,11 @@ class CustomCV(torchaudio.datasets.COMMONVOICE):
                      "nord-occidental":2,
                      "balear":3,
                      "valencià":4}
+        self.code_2_dial = {0:"central",
+                            1:"nord",
+                            2:"nord-occidental",
+                            3:"balear",
+                            4:"valencià"}
         self.model_samp_rate = model_sr
 
     def __getitem__(self, n: int) -> Tuple[Tensor, list, int]:
