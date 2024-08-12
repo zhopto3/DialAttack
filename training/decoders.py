@@ -18,10 +18,10 @@ class Greedy_Decoder(torch.nn.Module):
         out_seq = []
         for seq in decoded_seqs:
             seq = torch.unique_consecutive(seq, dim=-1)
-            print(seq.shape)
+
             #get rid of all the blank tokens in each sequence
             seq = seq[seq!=self.blank]
-            print(seq.shape)
+
             out_seq.append(seq)
         return out_seq
 
