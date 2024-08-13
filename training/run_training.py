@@ -49,11 +49,17 @@ def get_args():
     parser.add_argument("--patience_delta", default = -0.1, type=float,
                         help = "Some minimal change to indicate when a model should stop training")
     
-    parser.add_argument("--initial_lr", default = 0.00001, type=float,
-                        help = "Initial learning rate to pass to lr scheduler")
+    parser.add_argument("--min_eta", default = 0.00001, type=float,
+                        help = "When using the Cosine annealing LR scheduler w/ warm restarts, the minimum learning rate")
     
-    parser.add_argument("--lr_patience", default=2, type=int,
-                        help="Number of stagnant epochs (measured by validation loss) before dropping lr")
+    parser.add_argument("--max_eta", default = 0.001, type=float,
+                        help = "When using the Cosine annealing LR scheduler w/ warm restarts, the maximum learning rate")
+    
+    # parser.add_argument("--initial_lr", default = 0.00001, type=float,
+    #                     help = "Initial learning rate to pass to lr scheduler")
+    
+    # parser.add_argument("--lr_patience", default=2, type=int,
+    #                     help="Number of stagnant epochs (measured by validation loss) before dropping lr")
     
     parser.add_argument("--es_patience", default=5, type=int,
                         help="Number of epochs without a new best validation loss before ending training")
@@ -94,7 +100,7 @@ def main():
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
 
     #Initiate training
-    trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
-
+    #trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
+    trainer.train(min_eta=args.min_eta,max_eta=args.max_eta, es_patience=args.es_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
 if __name__ == "__main__":
     main()
