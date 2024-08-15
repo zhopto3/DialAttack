@@ -24,7 +24,7 @@ class Trainer:
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # def train(self, initial_lr, es_patience, lr_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
-    def train(self, min_eta, max_eta, es_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
+    def train(self, eta, es_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
         os.makedirs(f'./{self.name}',exist_ok=True)
         os.makedirs(f'./{self.name}/logs',exist_ok=True)
         logging.basicConfig(filename=f'./{self.name}/logs/{self.name}.log',filemode="w", format='%(asctime)s %(message)s')
@@ -35,17 +35,25 @@ class Trainer:
             #self.optimizer = torch.optim.Adam(self.network.parameters(),lr = initial_lr)
             #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,patience=lr_patience)
             #If using cosine annealing warm restarts, then the optimizer lr gets set to the max lr
-            self.optimizer = torch.optim.Adam(self.network.parameters(),lr = max_eta)
-            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer,T_0=500,eta_min=min_eta)
+            self.optimizer = torch.optim.Adam(self.network.parameters(),lr = eta)
+            # if grad_accum:
+            #     self.scheduler=torch.optim.lr_scheduler.OneCycleLR(optimizer=self.optimizer,max_lr=max_eta,epochs=num_epochs,
+            #                                                        steps_per_epoch=(len(self.train_dl)//16),three_phase=True)
+            # else:
+            #     self.scheduler=torch.optim.lr_scheduler.OneCycleLR(optimizer=self.optimizer,max_lr=max_eta,epochs=num_epochs,
+            #                                                        steps_per_epoch=(len(self.train_dl)),three_phase=True)                
+            #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer,T_0=500,eta_min=min_eta)
             self.logger.info(f"ASR training:")
-            self._train_asr(es_patience, grad_accum, delta)
+            #self._train_asr(es_patience, grad_accum, delta)
+            self._train_asr(grad_accum, es_patience,delta,eta)
         elif self.task=="dial_class":
             #@TODO implement optimizer and scheduler for dialect classification if necessary
-            self._train_dial_class(es_patience)
+            #self._train_dial_class(es_patience)
+            pass
         else:
             raise Exception("Task not implemented")
         
-    def _train_asr(self,patience, accum, delta):
+    def _train_asr(self, accum, patience,delta,eta):
         self.network = self.network.to(self.device)
 
         self._initialize_metrics()
@@ -53,19 +61,16 @@ class Trainer:
         if accum:
             #accumulate gradients for 16 batches before updting weights
             accum_steps = 16
-            if len(self.train_dl)%16==0:
-                self.iters=len(self.train_dl)/16
-            else:
-                self.iters=(len(self.train_dl)//16)+1
         else:
             #reduce this to one so updates are done after every batch
             accum_steps = 1
-            self.iters=len(self.train_dl)
 
         while self._terminate(patience):
             self.logger.info(f"Epoch {len(self.train_loss_epoch)+1}:")
-            self.logger.info(f"Learning Rate: {self.scheduler.get_last_lr()}")
-            self.logger.info("Train Step\tBatch Loss\tLearning Rate")
+            #self.logger.info(f"Learning Rate: {self.scheduler.get_last_lr()}")
+            self.logger.info(f"Learning Rate: {eta}")
+            self.logger.info(f"Patience Delta : {delta}")
+            self.logger.info("Train Step\tBatch Loss")
             self.network.train()
             for i, (x,t,_,audio_l,txt_l) in enumerate(self.train_dl):
                 x = x.to(self.device)
@@ -90,9 +95,10 @@ class Trainer:
                     #Update running batch loss & dict
                     self.running_train_loss+=J.item()
                     self.train_loss_batch[i+1]=J.item()
-                    #update learning rate if using cosine annealing w/warm restarts
-                    self.scheduler.step(len(self.train_loss_epoch)+i/self.iters)
-                    self.logger.info(f"{i+1}\t{J.item()}\t{self.scheduler.get_last_lr()}")
+                    #update learning rate
+                    #self.scheduler.step()
+                    #self.logger.info(f"{i+1}\t{J.item()}\t{self.scheduler.get_last_lr()}")
+                    self.logger.info(f"{i+1}\t{J.item()}")
             self.logger.info(f"End of Epoch {len(self.train_loss_epoch)+1}")
             #Update the train epoch loss; reset running train loss to 0
             self.train_loss_epoch[len(self.train_loss_epoch)+1]=self.running_train_loss/(len(self.train_dl)/accum_steps)
@@ -100,6 +106,7 @@ class Trainer:
             self.running_train_loss=0.
             #Run validation and update relevant metrics
             J_val = self._validation_step_asr(delta=delta)
+            #J_val = self._validation_step_asr()
             self.logger.info(f"Average Validation loss over epoch:\t{J_val}")
             self.logger.info(f"Best Validation Epoch:\t{self.best_val_epoch}")
             self.logger.info(f"Best Validation Loss:\t{self.best_val_loss}")
@@ -171,6 +178,6 @@ class Trainer:
             'epoch':self.best_val_epoch,
             'loss':self.train_loss_epoch[self.best_val_epoch],
             'model_state_dict':self.network.state_dict(),
-            'optimizer_state_dict':self.optimizer.state_dict(),
-            'scheduler_state_dict':self.scheduler.state_dict()
+            'optimizer_state_dict':self.optimizer.state_dict()
+            #'scheduler_state_dict':self.scheduler.state_dict()
         },f'./{self.name}/checkpoints/best_checkpoint.pt')

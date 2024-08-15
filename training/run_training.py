@@ -46,22 +46,24 @@ def get_args():
     parser.add_argument("--grad_accum",action="store_true",
                         help="If true, will accumulate gradients and only update the weigths every 16 batches. Use to increase effective batch size when GPU storage limited.")
     
-    parser.add_argument("--patience_delta", default = -0.1, type=float,
+    parser.add_argument("--patience_delta", default = -0.05, type=float,
                         help = "Some minimal change to indicate when a model should stop training")
     
-    parser.add_argument("--min_eta", default = 0.00001, type=float,
-                        help = "When using the Cosine annealing LR scheduler w/ warm restarts, the minimum learning rate")
+    # parser.add_argument("--min_eta", default = 0.00001, type=float,
+    #                     help = "When using the Cosine annealing LR scheduler w/ warm restarts, the minimum learning rate")
     
-    parser.add_argument("--max_eta", default = 0.001, type=float,
+    parser.add_argument("--eta", default = 0.0009, type=float,
                         help = "When using the Cosine annealing LR scheduler w/ warm restarts, the maximum learning rate")
     
+    # parser.add_argument("--num_epochs", default = 6, type=int,
+    #                     help = "When using the OneCycle LR scheduler, the number epochs")
     # parser.add_argument("--initial_lr", default = 0.00001, type=float,
     #                     help = "Initial learning rate to pass to lr scheduler")
     
     # parser.add_argument("--lr_patience", default=2, type=int,
     #                     help="Number of stagnant epochs (measured by validation loss) before dropping lr")
     
-    parser.add_argument("--es_patience", default=5, type=int,
+    parser.add_argument("--es_patience", default=3, type=int,
                         help="Number of epochs without a new best validation loss before ending training")
 
     return parser.parse_args()
@@ -101,6 +103,8 @@ def main():
 
     #Initiate training
     #trainer.train(initial_lr=args.initial_lr, es_patience=args.es_patience,lr_patience=args.lr_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
-    trainer.train(min_eta=args.min_eta,max_eta=args.max_eta, es_patience=args.es_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
+    # trainer.train(min_eta=args.min_eta,max_eta=args.max_eta, es_patience=args.es_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
+    # trainer.train(max_eta=args.max_eta, grad_accum=args.grad_accum, num_epochs=args.num_epochs,batch_size=args.batch_size)
+    trainer.train(eta=args.eta, es_patience=args.es_patience, delta=args.patience_delta,grad_accum=args.grad_accum)
 if __name__ == "__main__":
     main()
