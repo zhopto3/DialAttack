@@ -12,13 +12,12 @@ sys.path.insert(1,"./data_prep")
 from data_util import Tokenizer, TextTransform
 
 
-
-class CustomCV(torchaudio.datasets.COMMONVOICE):
+class AttackCV(torchaudio.datasets.COMMONVOICE):
     
     def __init__(self, model_sr:int , attack_target: str,
                  #CHANGE ATTACK TARGET
                  vocab: str="vocab.json", path: str="../cv-cat-18/ca/"):
-        super(CustomCV,self).__init__(
+        super(AttackCV,self).__init__(
             root=path,
             #access a balanced sample from the eval set
             tsv='attack_samp_balanced.tsv'
@@ -40,12 +39,11 @@ class CustomCV(torchaudio.datasets.COMMONVOICE):
         #Can just do these preprocessing operations one time since we'll only have the one attack target
         self.text = self.text_pipe.preprocess(attack_target)
                 #Encode text (Might need to turn these into one-hot encoded vectors at some point)
-        self.encoded_text = self.tokenizer.encode(self.text)
+        self.encoded_attack = self.tokenizer.encode(self.text)
 
     def __getitem__(self, n: int) -> Tuple[Tensor, list, int]:
         waveform, samp_rate, metadata = super().__getitem__(n)
         #Create transform depending on current samples sample rate
         if samp_rate != self.model_samp_rate:
             waveform = torchaudio.functional.resample(waveform, orig_freq=samp_rate,new_freq=self.model_samp_rate)
-
-        return waveform,self.encoded_text,self.dial.get(metadata["grouped_accents"])
+        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), self.dial.get(metadata["path"])
