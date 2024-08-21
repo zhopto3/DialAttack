@@ -122,6 +122,7 @@ class CWAttack:
         self.logger.info(f"Regularizing Constant to multiply by the perturbation's L2 norm in loss calculation:\t{reg_c}")
         self.logger.info(f'Number of perturbation updates before moving to next data point:\t{num_iter}')
         self.logger.info(f'Max number of times to attempt attenuating eta within the max number of iterations:\t{k}')
+        self.logger.info(f"Adam Optimizer Eta:\t{self.eta}")
 
     def _initialize_metrics(self):
         self.k_count = 0  
