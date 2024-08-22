@@ -125,9 +125,9 @@ def attack_collator(batch):
     #Unravel text in batch
     T = [torch.Tensor(txt) for _,txt,_2,_3 in batch]
     #Return the text, lengths to give to the CTC loss
-    text_lengths = [len(txt) for _,txt,_2 in batch]
+    text_lengths = [len(txt) for _,txt,_2,_3 in batch]
     #Unravel dial in batch 
-    dial = [dialect for _,_2,dialect in batch]
+    dial = [dialect for _,_2,dialect,_3 in batch]
     #unravel file path 
     path = [paths for _,_2,_3,paths in batch]
-    return X, T, dial, torch.Tensor(audio_lengths).long(), torch.Tensor(text_lengths).long(), path
+    return torch.stack(X), torch.stack(T), dial, torch.Tensor(audio_lengths).long(), torch.Tensor(text_lengths).long(), path
