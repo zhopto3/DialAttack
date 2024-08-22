@@ -15,7 +15,6 @@ from data_util import Tokenizer, TextTransform
 class AttackCV(torchaudio.datasets.COMMONVOICE):
     
     def __init__(self, model_sr:int , attack_target: str,
-                 #CHANGE ATTACK TARGET
                  vocab: str="vocab.json", path: str="../cv-cat-18/ca/"):
         super(AttackCV,self).__init__(
             root=path,
@@ -46,4 +45,4 @@ class AttackCV(torchaudio.datasets.COMMONVOICE):
         #Create transform depending on current samples sample rate
         if samp_rate != self.model_samp_rate:
             waveform = torchaudio.functional.resample(waveform, orig_freq=samp_rate,new_freq=self.model_samp_rate)
-        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), self.dial.get(metadata["path"])
+        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), metadata["path"]

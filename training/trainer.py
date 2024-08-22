@@ -99,6 +99,8 @@ class Trainer:
                     #self.scheduler.step()
                     #self.logger.info(f"{i+1}\t{J.item()}\t{self.scheduler.get_last_lr()}")
                     self.logger.info(f"{i+1}\t{J.item()}")
+
+                    torch.cuda.empty_cache()
             self.logger.info(f"End of Epoch {len(self.train_loss_epoch)+1}")
             #Update the train epoch loss; reset running train loss to 0
             self.train_loss_epoch[len(self.train_loss_epoch)+1]=self.running_train_loss/(len(self.train_dl)/accum_steps)

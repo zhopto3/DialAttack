@@ -10,10 +10,11 @@ from torch import load
 
 #Add customCV modules to path
 sys.path.insert(1,"./data_prep")
+sys.path.insert(1,"./training")
 
 from attack_dataset import AttackCV
-from data_util import attack_collator
 from xlsr_asr import XLSR_ASR
+from data_util import attack_collator
 from adversarial_attacks import CWAttack
 
 
@@ -94,6 +95,7 @@ def main(args):
     #Launch attack
     attacker.train_attack(args.initial_epsilon,args.alpha,args.regularizing_const,
                           args.number_iterations,args.k)
+
 
 if __name__=="__main__":
     args = get_args()

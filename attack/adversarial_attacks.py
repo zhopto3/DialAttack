@@ -1,18 +1,18 @@
 import sys
 import os
 import logging
-from math import isclose
+from math import isclose, log10
 
 import torch
 import torchaudio
-from numpy.random import random_sample 
+from numpy.random import uniform 
 
 #Add customCV modules to path
 sys.path.insert(1,"./data_prep")
 sys.path.insert(1,"./training")
 
-from training.decoders import Greedy_Decoder
-from training.error_rate import error_rate
+from decoders import Greedy_Decoder
+from error_rate import error_rate
 
 
 class CWAttack:
@@ -43,74 +43,76 @@ class CWAttack:
         self._prepare_logger(epsilon, alpha, reg_c, num_iter,k)
         self.network = self.network.to(self.device)
         self.network.eval()
-        for x,t, dial, audio_l,text_l,path in self.dl:
+        for x,t, dial, audio_l,txt_l,path in self.dl:
             self._initialize_metrics()
 
             #Move data to device
             t = t.to(self.device)
             audio_l = audio_l.to(self.device)
             txt_l = txt_l.to(self.device)
-
+            x = x.to(self.device)
+            #x_shape: B(1)xTxChannel(1); reshape to remove channel info
+            x = x.squeeze(-1)
             #Make random noise
-            delta = torch.from_numpy((epsilon+epsilon) * random_sample(size=x.shape)-epsilon)
+            delta = torch.from_numpy(uniform(low=-1*epsilon,high=epsilon,size=x.shape)).float()
+            delta = delta.to(self.device)
             #Should probably save the initial amplitude / SNR of the noise
             if self.k_count==0:
                 #Only log the name of the data point for the first adversarial made
-                self.logger.info(f"Data Point:\t{path}")
+                self.logger.info(f"Data Point:\t{path[0]}")
                 self.logger.info(f"Dialect:\t{self.dial_codes[dial[0]]}")
             self.logger.info("Now beginning a new adversarial sample for this data point.") 
-            self.logger.info(f"Initial Epsilon:\t{self.toDB(delta)-self.toDB(x)}")
-            self.logger.info(f"Initial SNR:\t{self.toDB(delta)-self.toDB(x)}")
-            self.logger.info(f"k_count\tIteration\tSNR\tWER")
-            #make the delta require a gradient
+            self.logger.info(f"Initial Epsilon:\t{epsilon}")
+            self.logger.info(f"Initial SNR:\t{self._calculate_snr(delta,x)}")
+            self.logger.info(f"k_count\tIteration\tLoss\tSNR\tCurrent Output\tWER")
+            #make the noisy sample require a gradient
             delta = torch.autograd.Variable(delta,requires_grad=True)
             #set up our optimizer for this sample
-            optimizer = torch.optim.adam([delta],lr=self.eta)
-
+            optimizer = torch.optim.Adam([delta],lr=self.eta)
+            #optimizer = torch.optim.Adam([x_prime],lr=self.eta)
             while self.k_count < k and self.iter_count < num_iter:
-                x_prime = x+delta
+                #As in the whisper attacks, clamp the updated delta down to epsilon after every optimization step
+                x_prime = x+torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon)
                 #clamp down to the possible range for audio files
-                x_prime = torch.clamp(x_prime,min=-1.,max=1.)
-                x_prime = x_prime.to(self.device)
+                x_prime = torch.clamp(x_prime.clone(),min=-1.,max=1.)
                 #Get model output
                 y, in_lengths = self.network(x_prime,audio_l)
                 #Calculate loss and add relevant criteria:
                 J = self.criterion(y,t,in_lengths,txt_l)
                 #Use default order of two for the norm
-                J = J.item() + reg_c * (torch.linalg.vector_norm(delta).item()**2)
-                J.backward()
+                loss = J + reg_c * (torch.linalg.vector_norm(torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon),dim=1)**2)
+                loss.backward(retain_graph=True)
                 
-                #Evaluate attack efficiency
+                #Evaluate attack efficiency; squeeze middle dimension (batch) away
                 wer, decoded_model= self._eval_attack(y,t)
 
                 if isclose(0.0,wer):
-                    epsilon *= alpha
-                    self.last_success_db = self.toDB(delta)-self.toDB(x)
+                    self.last_success_db = self._calculate_snr(torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon),x)
                     self.last_success_epsilon = epsilon
                     self.last_success_k = self.k_count
-                    self.logger.info(f"{self.k_count}\t{self.num_iter}\t{self.toDB(delta)-self.toDB(x)}\t{wer}")
-
+                    self.logger.info(f"{self.k_count}\t{self.iter_count}\t{loss.item()}\t{self._calculate_snr(torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon),x)}\t{decoded_model}\t{wer}")
+                    
+                    epsilon *= alpha
                     self.k_count +=1
                     self.iter_count +=1
-                    #break the loop, restart 
-                    break
+                    if self.k_count<8:
+                        self.logger.info(f"Successful attack; reducing attack radius to {epsilon}")
+                    
                 else: 
                     self.iter_count +=1
                     #Update the perturbation
                     optimizer.step()
-                    #As in the whisper attacks, clamp the updated delta down to epsilon after every optimization step
-                    delta = torch.clamp(delta,min=-1*epsilon, max = epsilon)
                     optimizer.zero_grad()
-                    #
-                    if self.iter_count//25==0:
-                        self.logger.info(f"{self.k_count}\t{self.num_iter}\t{self.toDB(delta)-self.toDB(x)}\t{wer}")
+                    if self.iter_count%25==0:
+                        self.logger.info(f"{self.k_count}\t{self.iter_count}\t{loss.item()}\t{self._calculate_snr(torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon),x)}\t{decoded_model}\t{wer}")
 
-            #Log relevant statistics after finishing each data point
+            #Log relevant statistics after finishing each data point 
             if self.k_count>0:
-                self._finish_attack_log(x_prime, epsilon, wer, decoded_model,path[0])
+                self._finish_attack_log(x_prime, wer, decoded_model,path[0])
             else:
-                last_snr=self.toDB(delta)-self.toDB(x)
-                self._finish_attack_log(x_prime, epsilon, wer, decoded_model,path[0],last_snr=last_snr)
+                last_snr=self._calculate_snr(torch.clamp(delta.clone(),min=-1*epsilon, max = epsilon),x)
+                self._finish_attack_log(x_prime, wer, decoded_model,path[0],last_snr=last_snr)
+            break
 
     def _prepare_logger(self,epsilon, alpha, reg_c, num_iter,k):
         logging.basicConfig(filename=f'./experiments/{self.name}/logs/cw_attack.log',filemode="w", format='%(asctime)s %(message)s')
@@ -132,13 +134,18 @@ class CWAttack:
         self.last_success_epsilon = 0
         self.last_success_k = 0
 
-    def _eval_attak(self,model_out, attack_target):
+    def _calculate_snr(self,delta,x):
+        #Carloni wagner def to get magnitude of dif in decibels
+        #Larger difference indicates a quieter adversarial perturbance
+        return 20*(log10(torch.linalg.vector_norm(x,ord=torch.inf,dim=1).item())-log10(torch.linalg.vector_norm(delta,ord=torch.inf,dim=1).item()))
+        # return 20*log10(torch.linalg.vector_norm(delta,ord=2).item())
+
+    def _eval_attack(self,model_out, attack_target):
         #Decode the output:
         decoded_y = self.decoder(model_out)
 
-        decoded_model = self.self.tokenizer.decode(decoded_y.detach().cpu().type(torch.int64).tolist())
-        decoded_gold = self.tokenizer.decode(attack_target.detach().cpu().type(torch.int64).tolist())
-
+        decoded_model = self.tokenizer.decode(decoded_y[0].detach().cpu().type(torch.int64).tolist())
+        decoded_gold = self.tokenizer.decode(attack_target[0].detach().cpu().type(torch.int64).tolist())
         wer = error_rate(decoded_gold, decoded_model, char=False)
 
         return wer,decoded_model
@@ -148,11 +155,11 @@ class CWAttack:
         if self.k_count>0:
             self.logger.info('Successful:\tTrue')
             #Final K: k_count
-            self.logger.info(f'Final K:\t{self.last_success_k}')
+            self.logger.info(f'Final K:\t{self.last_success_k+1}')
             #Final epsilon (can figure this out with the final k and the alpha but this is easier)
             self.logger.info(f"Final Epsilon:\t{self.last_success_epsilon}")
             #Last Successful SNR: db_x(delta)
-            self.logger.info(f"SNR of quietest successful attack: {self.last_success_db.item()}")
+            self.logger.info(f"SNR of quietest successful attack: {self.last_success_db}")
             # Final iter count (did it stop bc we reached max iter or max k? )
             self.logger.info(f"Number of iterations:\t{self.iter_count}")
             #Only saving the audio file if there was at least one succesful attack:
@@ -165,12 +172,12 @@ class CWAttack:
             # Attack wer: (last wer) (might be useful to see how low the wer was among the attacks that never succeeded)
             self.logger.info(f"Last Attack Target WER:\t{last_wer}")
             # Last SNR: Not sure if it's useful, but might as well
-            self.logger.ingo(f"Last SNR:\t{last_snr}") 
+            self.logger.info(f"Last SNR:\t{last_snr}") 
     
     def _save_audio(self, x_prime,path):
         #Example in_path: common_voice_ca_20252730.mp3
         out_path = "adversarial_"+path.split("_")[-1]
         #Replace with .wav
         out_path = out_path.split(".")[0]+".wav"
-        torchaudio.save(uri=f"./experiments/{self.name}/cwattacks/{out_path}",src=x_prime,
+        torchaudio.save(uri=f"./experiments/{self.name}/cwattacks/{out_path}",src=x_prime.detach().cpu(),
                         sample_rate=16000)
