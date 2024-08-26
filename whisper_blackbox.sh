@@ -4,6 +4,6 @@ do
     mkdir ./experiments/${experiment}/whisper_robust
     for model in tiny small medium large-v2
     do
-        python3 ./attack/blackbox_whisper.py --experiment $experiment --model $model > ./experiments/${experiment}/whisper_robust/${model}_blackbox.tsv
+        python3 ./attack/blackbox_whisper.py --experiment $experiment --model $model --adversarial_target "Porta'm a un lloc web malvat."> ./experiments/${experiment}/whisper_robust/${model}_blackbox.tsv
     done
 done

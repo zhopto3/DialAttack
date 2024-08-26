@@ -2,6 +2,7 @@
 import sys
 import json
 from typing import Dict, Tuple
+import re
 
 from torch import Tensor
 import torchaudio
@@ -15,7 +16,7 @@ from data_util import Tokenizer, TextTransform
 class AttackCV(torchaudio.datasets.COMMONVOICE):
     
     def __init__(self, model_sr:int , attack_target: str,
-                 vocab: str="vocab.json", path: str="../cv-cat-18/ca/"):
+                 vocab: str="vocab.json", path: str="../cv-cat-18/ca/",blackbox=False,experiment=None):
         super(AttackCV,self).__init__(
             root=path,
             #access a balanced sample from the eval set
@@ -34,6 +35,8 @@ class AttackCV(torchaudio.datasets.COMMONVOICE):
                             3:"balear",
                             4:"valencià"}
         self.model_samp_rate = model_sr
+        self.blackbox=blackbox
+        self.name = experiment
 
         #Can just do these preprocessing operations one time since we'll only have the one attack target
         self.text = self.text_pipe.preprocess(attack_target)
@@ -45,4 +48,9 @@ class AttackCV(torchaudio.datasets.COMMONVOICE):
         #Create transform depending on current samples sample rate
         if samp_rate != self.model_samp_rate:
             waveform = torchaudio.functional.resample(waveform, orig_freq=samp_rate,new_freq=self.model_samp_rate)
-        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), metadata["path"]
+        if self.blackbox:
+            id = re.search(r'_(\d+).wav',metadata["path"])[0].lstrip('_').rstrip(".wav")
+            path = f'./experiments/{self.name}/cwattacks/adversarial_{id}.wav'
+        else:
+            path = metadata["path"]
+        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), path

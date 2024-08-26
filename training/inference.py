@@ -39,10 +39,32 @@ class Inference():
             self.dial_codes = eval_set.code_2_dial
             self._eval_asr(decoder)
         elif self.task=="adversarial":
-            pass
+            decoder = BeamSearch_Decoder(beam_size=beam_size)
+            self.tokenizer = eval_set.tokenizer
+            self.dial_codes = eval_set.code_2_dial
+            self._eval_asr(decoder)
         else:
             raise Exception("Task not implemented")
         
+    def _eval_adversarial(self,decoder):
+        self.network = self.model.to(self.device)
+        print(f"Dialect\tpath\tAdversarial Target\tASR Output\tAdversarial WER")
+        with torch.no_grad():
+            for x,t, dial, audio_l,txt_l,path in self.eval_loader:
+                t = t.to(self.device)
+                audio_l = audio_l.to(self.device)
+                txt_l = txt_l.to(self.device)
+                x = x.to(self.device)
+
+                x = x.squeeze(-1)
+                y, in_lengths = self.network(x,audio_l)
+                decoded_y = decoder(y)
+                decoded_model = self.tokenizer.decode(decoded_y[0].detach().cpu().type(torch.int64).tolist())
+                decoded_gold = self.tokenizer.decode(t[0].detach().cpu().type(torch.int64).tolist())
+                wer = error_rate(decoded_gold, decoded_model, char=False)
+
+                print(f"{self.dial_codes[dial]}\t{path}\t{decoded_gold}\t{decoded_model}\t{wer}")
+
     def _eval_asr(self, decoder):
         self.network = self.model.to(self.device)
         
