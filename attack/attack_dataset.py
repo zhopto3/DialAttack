@@ -20,8 +20,11 @@ class AttackCV(torchaudio.datasets.COMMONVOICE):
         super(AttackCV,self).__init__(
             root=path,
             #access a balanced sample from the eval set
-            tsv='attack_samp_balanced.tsv'
+            tsv='attack_samp_balanced.tsv' if not(blackbox) else f'attack_samp_{experiment}.tsv'
         )
+        if blackbox:
+            self._folder_audio = f'{experiment}/cwattacks'
+            self._ext_audio = '.wav'
         self.tokenizer = Tokenizer(vocab)
         self.text_pipe = TextTransform()
         self.dial = {"central":0,
@@ -48,9 +51,5 @@ class AttackCV(torchaudio.datasets.COMMONVOICE):
         #Create transform depending on current samples sample rate
         if samp_rate != self.model_samp_rate:
             waveform = torchaudio.functional.resample(waveform, orig_freq=samp_rate,new_freq=self.model_samp_rate)
-        if self.blackbox:
-            id = re.search(r'_(\d+).wav',metadata["path"])[0].lstrip('_').rstrip(".wav")
-            path = f'./experiments/{self.name}/cwattacks/adversarial_{id}.wav'
-        else:
-            path = metadata["path"]
-        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), path
+
+        return waveform,self.encoded_attack,self.dial.get(metadata["grouped_accents"]), metadata['path']

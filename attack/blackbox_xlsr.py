@@ -3,6 +3,10 @@ import argparse
 import torch
 import torchaudio
 import sys
+import re
+import os
+
+import pandas as pd
 
 sys.path.insert(1,"./data_prep")
 sys.path.insert(1,"./training")
@@ -40,6 +44,19 @@ def get_args():
     return parser.parse_args()
 
 
+def get_id(true_path):
+    id = re.search(r'\d{2,}',true_path)
+    return id.group(0)
+
+
+def fix_paths(attack_expt):
+    df = pd.read_csv('../cv-cat-18/ca/attack_samp_balanced.tsv',delimiter='\t')
+    df.loc[:,'path']=df['path'].apply(lambda row: f"adversarial_{get_id(row)}.wav")
+    # drop the samples that didn't make successful adversarial samples
+    df = df[df['path'].isin(os.listdir(f'./experiments/{attack_expt}/cwattacks'))]
+    df.to_csv(f'./experiments/attack_samp_{attack_expt}.tsv',sep='\t',index=False)
+
+
 def get_bundle(model_name: str):
     if model_name =="XLSR53":
         bundle = torchaudio.pipelines.WAV2VEC2_XLSR53
@@ -55,9 +72,13 @@ def get_bundle(model_name: str):
     return bundle
 
 
-def main():
+def main(args):
     target = "Porta'm a un lloc web malvat."
-    attacks = AttackCV(16000, attack_target=target, vocab=args.vocab_path, path=args.data_path,blackbox=True,experiment=args.attack_experiment)
+
+    #edit paths to audio
+    fix_paths(args.attack_experiment)
+
+    attacks = AttackCV(16000, attack_target=target, vocab=args.vocab_path, path=f"./experiments",blackbox=True,experiment=args.attack_experiment)
 
     attack_loader = torch.utils.data.DataLoader(attacks, shuffle=False, batch_size=1, collate_fn = attack_collator)
 
@@ -70,7 +91,7 @@ def main():
     
     
     #Initiate Inference/Evaluation
-    evaluator.evaluate(beam_size=args.beam_size, eval_set=attacks)
+    evaluator.evaluate(beam_size=1, eval_set=attacks)
 
 
 
