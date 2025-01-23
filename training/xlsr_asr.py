@@ -2,7 +2,7 @@ import torch
 import torchaudio
 
 class XLSR_ASR(torch.nn.Module):
-    def __init__(self,O:int, model: str="XLSR_300M", freeze_CNN: bool=True):
+    def __init__(self,O:int, model: str="XLSR_300M", freeze_model: bool=True):
         """Provide name of XLS_r model (should be available in torchaudio) and the size of the output layer (vocab size)"""
         super(XLSR_ASR,self).__init__()
 
@@ -18,7 +18,12 @@ class XLSR_ASR(torch.nn.Module):
             raise Exception('Model not found')
         #There's a 'training' parameter here...
         self.encoder = self.bundle.get_model()
-        if freeze_CNN:
+        if freeze_model:
+            #Freeze all the param in the XLSR model
+            for p in self.encoder.named_parameters():
+                p[1].requires_grad=False
+        else:
+            #Freeze only the CNN Feature extractor, as in original XLSR paper
             for p in self.encoder.named_parameters():
                 if "feature_extractor" in p[0]:
                     p[1].requires_grad=False

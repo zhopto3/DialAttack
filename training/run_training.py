@@ -1,6 +1,7 @@
 """A script to initiate XLSR fine-tuning for ASR."""
 import argparse
 import sys
+import os
 
 from torchaudio import pipelines
 from torch.utils.data import DataLoader
@@ -28,8 +29,8 @@ def get_args():
     parser.add_argument("--model", choices = ["XLSR53","XLSR_300M","XLSR_1B","XLSR_2B"], required = True, 
                         help="Parameter num for pretrained XLSR model")
     
-    parser.add_argument("--freeze_feature_extractor", action="store_true",
-                        help="If passed, parameters in CNN feature extractor are frozen.")
+    parser.add_argument("--freeze_whole_model", action="store_true",
+                        help="If passed, all XLSR encoder parameters are frozen (not the ASR head);if not passed, only the param in XLSR's CNN feature extractor are frozen.")
     
     parser.add_argument("--prop_central", choices=['20','50','80','100'], required=True, 
                         help="Percent of Central Catalan in training and dev data")
@@ -37,8 +38,14 @@ def get_args():
     parser.add_argument("--vocab_path",default="./data_prep/vocab.json",
                         help="Path to file containing the tokens in vocab and their ids")
     
-    parser.add_argument("--data_path",default="../cv-cat-18/ca/",
-                        help="Path to directory containing data TSVs and clip directory")
+    # parser.add_argument("--data_path",default="../cv-cat-18/ca/",
+    #                     help="Path to directory containing data TSVs and clip directory")
+
+    parser.add_argument("--clip_path",default="~/data/zhopto/cv-corpus-18.0-delta-2024-06-14/ca/clips",
+                        help="Path to directory containing audio clips")
+
+    parser.add_argument("--sample_path",default="./samples/samp_01",
+                        help="Path to directory containing data TSVs about train and dev; should specify which sample")
     
     parser.add_argument("--batch_size", default = 16, type = int,
                         help="Train batch size")
@@ -87,6 +94,8 @@ def get_bundle(model_name: str):
 def main():
     args = get_args()
 
+    clip_path_full = os.path.expanduser(args.clip_path)
+    
     bundle = get_bundle(args.model)
     train_set = CustomCV(args.prop_central, bundle.sample_rate, split="train", vocab=args.vocab_path, path=args.data_path)
     dev_set = CustomCV(args.prop_central, bundle.sample_rate, split="dev", vocab=args.vocab_path, path=args.data_path)
@@ -97,7 +106,7 @@ def main():
     vocab_size = len(train_set.tokenizer)
 
     empty_cache()
-    network = XLSR_ASR(vocab_size, args.model, freeze_CNN=args.freeze_feature_extractor)
+    network = XLSR_ASR(vocab_size, args.model, freeze_model=args.freeze_whole_model)
 
     trainer = Trainer(args.task, train_loader=train_loader, val_loader=dev_loader, model=network, name=args.experiment_name)
 
