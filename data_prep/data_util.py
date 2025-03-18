@@ -8,126 +8,196 @@ import csv
 import pandas as pd
 import torch
 
+
 class Tokenizer:
 
-    def __init__(self, path_to_voc:str, path_to_train_val: str = "../cv-cat-18/ca/train_dev_full.tsv"):
+    def __init__(
+        self,
+        path_to_voc: str,
+        path_to_train_val: str = "../cv-cat-18/ca/train_dev_full.tsv",
+    ):
         if os.path.isfile(path_to_voc):
-            with open(path_to_voc,'r',encoding='utf-8') as voc:
+            with open(path_to_voc, "r", encoding="utf-8") as voc:
                 self.char_2_id = json.load(voc)
         else:
             self.char_2_id = self._make_vocab(path_to_train_val, path_to_voc)
-        
-        self.id_2_char = {id:char for char,id in list(self.char_2_id.items())}
 
-    def _make_vocab(self, data:str, out_path:str):
+        self.id_2_char = {id: char for char, id in list(self.char_2_id.items())}
+
+    def _make_vocab(self, data: str, out_path: str):
         """Make a json containing the correspondance between tokens and their numeric id"""
         preprocesser = TextTransform()
-        train_dev_df = pd.read_csv(data,delimiter="\t", escapechar="\\",quoting = csv.QUOTE_NONE)
-        
+        train_dev_df = pd.read_csv(
+            data, delimiter="\t", escapechar="\\", quoting=csv.QUOTE_NONE
+        )
+
         alphabet = []
 
-        preprocessed = train_dev_df.apply(lambda row: preprocesser.preprocess(row.sentence), axis=1)
+        preprocessed = train_dev_df.apply(
+            lambda row: preprocesser.preprocess(row.sentence), axis=1
+        )
 
         for sent in list(preprocessed):
             alphabet.extend(list(sent))
-            
-        alphabet = list(set(alphabet))
-        #Add "|" for the blank 
-        alphabet = {"|":0} | {char:i+1 for i,char in enumerate(alphabet)}
-        #Add "unk"
-        alphabet["[UNK]"]=len(alphabet)
 
-        #Save for future use
+        alphabet = list(set(alphabet))
+        # Add "|" for the blank
+        alphabet = {"|": 0} | {char: i + 1 for i, char in enumerate(alphabet)}
+        # Add "unk"
+        alphabet["[UNK]"] = len(alphabet)
+
+        # Save for future use
         with open(out_path, "w", encoding="utf-8") as output:
-            json.dump(alphabet,output,indent=1,ensure_ascii=False)
+            json.dump(alphabet, output, indent=1, ensure_ascii=False)
         return alphabet
 
     def encode(self, text):
-        #If the character isn't in the alphabet, replace w unknown
-        return [self.char_2_id.get(char, self.char_2_id["[UNK]"]) for char in list(text)]
+        # If the character isn't in the alphabet, replace with unknown
+        return [
+            self.char_2_id.get(char, self.char_2_id["[UNK]"]) for char in list(text)
+        ]
 
     def decode(self, ids):
-        return "".join([self.id_2_char.get(num) for num in ids if self.id_2_char.get(num,0)])
-    
+        return "".join(
+            [self.id_2_char.get(num) for num in ids if self.id_2_char.get(num, 0)]
+        )
+
     def __len__(self):
         return len(self.char_2_id)
 
 
 class TextTransform:
 
-    def __init__(self,specials:Optional[List[str]]=None):
+    def __init__(self, specials: Optional[List[str]] = None):
         if specials:
-            self.specials=specials
+            self.specials = specials
         else:
-            self.specials = ["\.","\?","\,","\!","\(","\)",
-                             "…","\+","―",'‐','–','-','\\\\',
-                             "\[","\]","\*","/","¿",'�',"\|",
-                             ";","_","–","—",">","~","¡",'“','ª','»',
-                             '"','‘','’','«','•','²',":","ı",'´','`',
-                              'ং', 'ঃ', 'ः',"ὑ","”",'̟','ð',"́"]
-    
-    def preprocess(self,text: str):
-        #Original df has mixed types, convert to str
+            self.specials = [
+                "\.",
+                "\?",
+                "\,",
+                "\!",
+                "\(",
+                "\)",
+                "…",
+                "\+",
+                "―",
+                "‐",
+                "–",
+                "-",
+                "\\\\",
+                "\[",
+                "\]",
+                "\*",
+                "/",
+                "¿",
+                "�",
+                "\|",
+                ";",
+                "_",
+                "–",
+                "—",
+                ">",
+                "~",
+                "¡",
+                "“",
+                "ª",
+                "»",
+                '"',
+                "‘",
+                "’",
+                "«",
+                "•",
+                "²",
+                ":",
+                "ı",
+                "´",
+                "`",
+                "ং",
+                "ঃ",
+                "ः",
+                "ὑ",
+                "”",
+                "̟",
+                "ð",
+                "́",
+            ]
+
+    def preprocess(self, text: str):
+        # Original df has mixed types, convert to str
         text = str(text)
-        text = unicodedata.normalize("NFKC",text)
+        text = unicodedata.normalize("NFKC", text)
         text = text.lower()
 
         # #remove special characters
         for char in self.specials:
-            text = re.sub(char,' ',text)
-        text = re.sub(r"\d",' ', text)
-        text = re.sub("@"," arroba ",text)
-        text = re.sub('°',' graus ',text)
-        text = re.sub('β',' beta ', text)
+            text = re.sub(char, " ", text)
+        text = re.sub(r"\d", " ", text)
+        text = re.sub("@", " arroba ", text)
+        text = re.sub("°", " graus ", text)
+        text = re.sub("β", " beta ", text)
 
-        text = re.sub(r"\s",' ', text)
-        text = re.sub(r"[ň,ℕ]","n", text)
-        text = re.sub(r"[ë,ė]","e", text)
-        text = re.sub(r"[ć,č,ℂ,с]","c", text)
-        text = re.sub(r"[ž,ℤ]","z", text)
-        text = re.sub(r'[š,ś,ş]','s', text)
-        text = re.sub(r"[ì,î]",'i', text)
-        #Replace with catalan digraph corresponding to same sound
-        text = re.sub("ñ","ny", text)
-        text = re.sub("ū","u", text)
-        text = re.sub("ţ","t", text)
-        text = re.sub("ř","r", text)
-        text = re.sub('ł','l', text)
-        text = re.sub('ù','u', text)
-        text = re.sub(r"[ō,ŏ,ö,ô,ő,ø]","o", text)
-        text = re.sub(r"[å,ā,â,ã,ä,á]","a", text)
+        text = re.sub(r"\s", " ", text)
+        text = re.sub(r"[ň,ℕ]", "n", text)
+        text = re.sub(r"[ë,ė]", "e", text)
+        text = re.sub(r"[ć,č,ℂ,с]", "c", text)
+        text = re.sub(r"[ž,ℤ]", "z", text)
+        text = re.sub(r"[š,ś,ş]", "s", text)
+        text = re.sub(r"[ì,î]", "i", text)
+        # Replace with catalan digraph corresponding to same sound
+        text = re.sub("ñ", "ny", text)
+        text = re.sub("ū", "u", text)
+        text = re.sub("ţ", "t", text)
+        text = re.sub("ř", "r", text)
+        text = re.sub("ł", "l", text)
+        text = re.sub("ù", "u", text)
+        text = re.sub(r"[ō,ŏ,ö,ô,ő,ø]", "o", text)
+        text = re.sub(r"[å,ā,â,ã,ä,á]", "a", text)
 
         return text.strip()
-    
+
 
 def dynamic_padding(batch):
-    #Unravel waveforms in batch
-    X = [wf.reshape(-1,1) for wf,_,_2 in batch]
-    #Return lengths to provide to encoder for attention masking
+    # Unravel waveforms in batch
+    X = [wf.reshape(-1, 1) for wf, _, _2 in batch]
+    # Return lengths to provide to encoder for attention masking
     audio_lengths = [x.shape[0] for x in X]
-    #Unravel text in batch
-    T = [torch.Tensor(txt) for _,txt,_2 in batch]
-    #Return the text, lengths to give to the CTC loss
-    text_lengths = [len(txt) for _,txt,_2 in batch]
-    #Unravel dial in batch
-    dial = [dialect for _,_2,dialect in batch]
-    #pad 
-    X = torch.nn.utils.rnn.pad_sequence(X,batch_first=True).squeeze()
-    T = torch.nn.utils.rnn.pad_sequence(T,batch_first=True, padding_value=-100)
-    return X, T, dial, torch.Tensor(audio_lengths).long(), torch.Tensor(text_lengths).long()
+    # Unravel text in batch
+    T = [torch.Tensor(txt) for _, txt, _2 in batch]
+    # Return the text, lengths to give to the CTC loss
+    text_lengths = [len(txt) for _, txt, _2 in batch]
+    # Unravel dial in batch
+    dial = [dialect for _, _2, dialect in batch]
+    # pad
+    X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True).squeeze()
+    T = torch.nn.utils.rnn.pad_sequence(T, batch_first=True, padding_value=-100)
+    return (
+        X,
+        T,
+        dial,
+        torch.Tensor(audio_lengths).long(),
+        torch.Tensor(text_lengths).long(),
+    )
 
 
 def attack_collator(batch):
-    #Unravel waveforms in batch—Will I need to squeeze this ? 
-    X = [wf.reshape(-1,1) for wf,_,_2,_3 in batch]
-    #Return lengths to provide to encoder for attention masking
+    # Unravel waveforms in batch
+    X = [wf.reshape(-1, 1) for wf, _, _2, _3 in batch]
+    # Return lengths to provide to encoder for attention masking
     audio_lengths = [x.shape[0] for x in X]
-    #Unravel text in batch
-    T = [torch.Tensor(txt) for _,txt,_2,_3 in batch]
-    #Return the text, lengths to give to the CTC loss
-    text_lengths = [len(txt) for _,txt,_2,_3 in batch]
-    #Unravel dial in batch 
-    dial = [dialect for _,_2,dialect,_3 in batch]
-    #unravel file path 
-    path = [paths for _,_2,_3,paths in batch]
-    return torch.stack(X), torch.stack(T), dial, torch.Tensor(audio_lengths).long(), torch.Tensor(text_lengths).long(), path
+    # Unravel text in batch
+    T = [torch.Tensor(txt) for _, txt, _2, _3 in batch]
+    # Return the text, lengths to give to the CTC loss
+    text_lengths = [len(txt) for _, txt, _2, _3 in batch]
+    # Unravel dial in batch
+    dial = [dialect for _, _2, dialect, _3 in batch]
+    # unravel file path
+    path = [paths for _, _2, _3, paths in batch]
+    return (
+        torch.stack(X),
+        torch.stack(T),
+        dial,
+        torch.Tensor(audio_lengths).long(),
+        torch.Tensor(text_lengths).long(),
+        path,
+    )
