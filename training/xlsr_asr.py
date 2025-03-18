@@ -16,7 +16,7 @@ class XLSR_ASR(torch.nn.Module):
             self.bundle = torchaudio.pipelines.WAV2VEC2_XLSR_2B
         else:
             raise Exception('Model not found')
-        #There's a 'training' parameter here...
+
         self.encoder = self.bundle.get_model()
         if freeze_model:
             #Freeze all the param in the XLSR model
@@ -31,15 +31,16 @@ class XLSR_ASR(torch.nn.Module):
 
     def forward(self,x,lengths):
         #Get features
+
         #Return list of features for all layers in xlsr, so take only the final to do classification
         features, lengths = self.encoder(waveforms=x,lengths=lengths)
-        #Old version; if using, uncomment lines 31 and 32. Don't think the features are useful though...
-        # features, lengths = self.encoder.extract_features(waveforms = x, lengths=lengths)
-        # features = features[-1]
+
         #Reduce to vocabulary dimensions
         # batchxtime_framexalphabet_dim
         logits = self.fc(features)
+
         #Get log probabilites out of logits
         log_probs = torch.nn.functional.log_softmax(logits,dim=-1)
+        
         #reshape to CTC requirements: in_lengthxBxalphabet_dim; return lengths of input in adjusted time frame
         return log_probs.transpose(0,1), lengths

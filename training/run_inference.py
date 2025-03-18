@@ -72,7 +72,6 @@ def main():
 
     vocab_size = len(test_set.tokenizer)
 
-    empty_cache()
     #Doesn't matter if we freeze the cnn when initializing or not because we will freeze the whole network to do inference
     network = XLSR_ASR(vocab_size, args.model)
 

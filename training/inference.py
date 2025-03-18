@@ -28,7 +28,6 @@ class Inference():
 
     def evaluate(self, beam_size: int, eval_set):
         if self.task=="asr":
-            #@TODO: make decoder object from another module
             if beam_size==1:
                 #make a greedy decoder
                 decoder = Greedy_Decoder()

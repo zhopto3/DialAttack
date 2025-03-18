@@ -9,7 +9,6 @@ class Greedy_Decoder(torch.nn.Module):
         self.blank=0
 
     def forward(self, batch_logits):
-        #No softmax necessary
         #Transpose to get dimensions BXTimeStepsXVocabSize
         batch_logits = torch.transpose(batch_logits, 0, 1)
         #Get the highest likelihood token for each time step; dim: Bx# Time Steps
@@ -24,14 +23,3 @@ class Greedy_Decoder(torch.nn.Module):
 
             out_seq.append(seq)
         return out_seq
-
-
-class BeamSearch_Decoder(torch.nn.Module):
-    
-    def __init__(self, beam_size):
-        super().__init__()
-        self.beam_size=beam_size
-
-    def forward(self):
-        pass
-        #Softmax is necessary...

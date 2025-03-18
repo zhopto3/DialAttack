@@ -23,7 +23,6 @@ class Trainer:
 
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    # def train(self, initial_lr, es_patience, lr_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
     def train(self, eta, es_patience, grad_accum, delta=-0.1, logger_level = logging.INFO):
         os.makedirs(f'./{self.name}',exist_ok=True)
         os.makedirs(f'./{self.name}/logs',exist_ok=True)
@@ -32,24 +31,12 @@ class Trainer:
         self.logger.setLevel(logger_level)
 
         if self.task=="asr":
-            #self.optimizer = torch.optim.Adam(self.network.parameters(),lr = initial_lr)
-            #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,patience=lr_patience)
-            #If using cosine annealing warm restarts, then the optimizer lr gets set to the max lr
+
             self.optimizer = torch.optim.Adam(self.network.parameters(),lr = eta)
-            # if grad_accum:
-            #     self.scheduler=torch.optim.lr_scheduler.OneCycleLR(optimizer=self.optimizer,max_lr=max_eta,epochs=num_epochs,
-            #                                                        steps_per_epoch=(len(self.train_dl)//16),three_phase=True)
-            # else:
-            #     self.scheduler=torch.optim.lr_scheduler.OneCycleLR(optimizer=self.optimizer,max_lr=max_eta,epochs=num_epochs,
-            #                                                        steps_per_epoch=(len(self.train_dl)),three_phase=True)                
-            #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer,T_0=500,eta_min=min_eta)
+
             self.logger.info(f"ASR training:")
-            #self._train_asr(es_patience, grad_accum, delta)
+
             self._train_asr(grad_accum, es_patience,delta,eta)
-        elif self.task=="dial_class":
-            #@TODO implement optimizer and scheduler for dialect classification if necessary
-            #self._train_dial_class(es_patience)
-            pass
         else:
             raise Exception("Task not implemented")
         
@@ -113,8 +100,6 @@ class Trainer:
             self.logger.info(f"Best Validation Epoch:\t{self.best_val_epoch}")
             self.logger.info(f"Best Validation Loss:\t{self.best_val_loss}")
             self.logger.info(f"Patience Counter:\t{self.patience_counter}")
-            #Adjust learning rate if doing reduce on plateau
-            #self.scheduler.step(J_val)
 
     def _validation_step_asr(self,delta):
         self.network.eval()
@@ -129,6 +114,7 @@ class Trainer:
 
                 J = self.criterion(y,t,in_lengths,txt_l)
                 self.running_val_loss+=J.item()
+
         #Update validation metrics
         J_val=self.running_val_loss/len(self.val_dl)
         self.val_loss_epoch[len(self.val_loss_epoch)+1] = J_val
@@ -138,16 +124,13 @@ class Trainer:
             self.best_val_loss = J_val
             self.best_val_epoch = len(self.val_loss_epoch)
             self._save_best_ckpt()
+
         #Update the patience counter
         if J_val>prior_best+delta:
             self.patience_counter+=1
         else:
             self.patience_counter=0
         return J_val
-        
-    def _train_dial_class(self,optimizer,patience,lr_scheduler):
-        #@TODO: If necessary, implement this
-        raise Exception("Task not implemented")
     
     def _initialize_metrics(self):#_initialize_metrics(self,patience):
         #Accumulate train loss over all batches epoch, divide by num batches, and reset to 0
@@ -181,5 +164,4 @@ class Trainer:
             'loss':self.train_loss_epoch[self.best_val_epoch],
             'model_state_dict':self.network.state_dict(),
             'optimizer_state_dict':self.optimizer.state_dict()
-            #'scheduler_state_dict':self.scheduler.state_dict()
         },f'./{self.name}/checkpoints/best_checkpoint.pt')
