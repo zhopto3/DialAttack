@@ -1,4 +1,4 @@
-# DialAttack
+# The Impact of Dialect Varition on Robust Automatic Speech Recognition for Catalan
 
 CommonVoice 18.0 has the following "macro-dialect" composition (L2 data removed):
 
@@ -9,11 +9,11 @@ CommonVoice 18.0 has the following "macro-dialect" composition (L2 data removed)
 
 **The values above are calculated after filtering out repeated recordings of the same sentence from the same macro-dialect. If the same sentence was recorded by speakers from different macro-dialects, all recordings of that sentence from different macro-dialects were left in the data. 
 
-Working in a way that tries to use as much data as possible, we aim to train ASR models that vary in how biased toward the Central dialect they are. Given that the Balear dialect represents the "lower limit" in terms of data, I worked from the assumption that at most, we can have ~30.4 hours of Balear training data (80% of 38 hr), and 3.8 hours each of Balear development and test data (10% each). 
+Working in a way that tries to use as much data as possible, we aimed to train ASR models that vary in how biased toward the Central dialect they are. Given that the Balear dialect represents the "lower limit" in terms of data, we worked from the assumption that at most, we can have ~30.4 hours of Balear training data (80% of 38 hr), and 3.8 hours each of Balear development and test data (10% each). 
 
-The following is one possible set of dialect compositions, ranging from a condition where all the fine-tuning data is in the Central dialect (Model 1) to a condition where the fine-tuning data is perfectly balanced (Model 4). 
+We trained four models using the following dialect compositions. Training data ranged from a condition where all the fine-tuning data is in the Central dialect (Model 1) to a condition where the fine-tuning data is perfectly balanced (Model 4). 
 
-In terms of number of hours:
+In terms of hours of data:
 
 __Train__
 
@@ -42,33 +42,16 @@ __Evaluation__
 | Model 3 (50% Central)  | 3.8     | 3.8    | 3.8  | 3.8             | 3.8      | 19    |
 | Model 4 (20% Central)  | 3.8     | 3.8    | 3.8  | 3.8             | 3.8      | 19    |
 
-And in terms of the number of data points that corresponds to:
+## To run model training: 
 
-__Train__
+After splitting a sample from the common voice corpus, fine-tuning can be initialized with the script `./training/run_training.py`
 
-|                        | Central | Balear | Nord  | Nord-Occidental | Valencià | Total |
-|------------------------|---------|--------|-------|-----------------|----------|-------|
-| Model 1 (100% Central) | 99455   | 0      | 0     | 0               | 0        | 99455 |
-| Model 2 (80% Central)  | 79564   | 4972   | 4972  | 4972            | 4972     | 99452 |
-| Model 3 (50% Central)  | 49727   | 12431  | 12431 | 12431           | 12431    | 99451 |
-| Model 4 (20% Central)  | 19891   | 19891  | 19891 | 19891           | 19891    | 99455 |
+For example:
 
-__Development__
+`python3 ./training/run_training.py --experiment_name=central100_53m_v02 --model=XLSR53 --freeze_feature_extractor --prop_central=100`
 
-|                        | Central | Balear | Nord | Nord-Occidental | Valencià | Total |
-|------------------------|---------|--------|------|-----------------|----------|-------|
-| Model 1 (100% Central) | 12430   | 0      | 0    | 0               | 0        | 12430 |
-| Model 2 (80% Central)  | 9944    | 621    | 621  | 621             | 621      | 12428 |
-| Model 3 (50% Central)  | 6215    | 1553   | 1553 | 1553            | 1553     | 12427 |
-| Model 4 (20% Central)  | 2486    | 2486   | 2486 | 2486            | 2486     | 12430 |
+## Adversarial Attacks
 
-__Evaluation__
+We train adversarial attacks on the fine-tuned models to study the impact of having multi-dialect fine-tuning data on adversarial robustness. Attacks can be trained using the script `./attack/launch_attack.py`:
 
-|                        | Central | Balear | Nord | Nord-Occidental | Valencià | Total |
-|------------------------|---------|--------|------|-----------------|----------|-------|
-| Model 1 (100% Central) | 2486    | 2486   | 2486 | 2486            | 2486     | 12430 |
-| Model 2 (80% Central)  | 2486    | 2486   | 2486 | 2486            | 2486     | 12430 |
-| Model 3 (50% Central)  | 2486    | 2486   | 2486 | 2486            | 2486     | 12430 |
-| Model 4 (20% Central)  | 2486    | 2486   | 2486 | 2486            | 2486     | 12430 |
-
-For now, this assumes that we'll only use the validated data with dialect annotations. If 152 hours of training data isn't enough to get good results on the ASR, we can look into making a dialect identifier. But, since the focus is more on the composition/bias in the train set rather than the quality of the ASR overall, I think we can proceed without using the unlabeled data. 
+`python3 ./attack/launch_attack.py --experiment_name=central100_53m_v02 --model=XLSR53 --lr=0.01 --regularizing_const=1.0`
