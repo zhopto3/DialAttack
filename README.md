@@ -1,4 +1,4 @@
-# The Impact of Dialect Varition on Robust Automatic Speech Recognition for Catalan
+# The Impact of Dialect Variation on Robust Automatic Speech Recognition for Catalan
 
 CommonVoice 18.0 has the following "macro-dialect" composition (L2 data removed):
 
